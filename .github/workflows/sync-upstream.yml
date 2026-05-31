@@ -1,0 +1,45 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add Upstream & Fetch
+        run: |
+          git remote add upstream https://github.com/7Sageer/sublink-worker.git
+          git fetch upstream
+
+      - name: Backup My Workflows
+        run: cp .github/workflows/sync-upstream.yml /tmp/sync-upstream.yml
+
+      - name: Force Sync to Upstream
+        run: |
+          git checkout main
+          git reset --hard upstream/main
+
+      - name: Restore My Workflows
+        run: |
+          mkdir -p .github/workflows
+          cp /tmp/sync-upstream.yml .github/workflows/sync-upstream.yml
+
+      - name: Commit & Push
+        run: |
+          git add .github/workflows/sync-upstream.yml
+          git diff --staged --quiet || git commit -m "chore: restore sync workflow after upstream sync"
+          git push origin main --force
